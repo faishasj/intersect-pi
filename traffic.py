@@ -1,4 +1,5 @@
 import cv2 as cv
+from database import Database
 
 # Weight of the input image into the background accumulator frame
 AVG_WEIGHT = 0.01
@@ -28,9 +29,10 @@ def preprocess_frame(frame):
 
 def main():
     # Set up the video capture
-    cap = cv.VideoCapture("feed/videoplayback.mp4")
+    cap = cv.VideoCapture("feed/feed_north.mp4")
     frame_width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+    db = Database()
 
     # Read in the first frame to set up a background accumulator frame
     ret, frame = cap.read()
@@ -70,13 +72,17 @@ def main():
             if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN:
                 midpoint = x + w / 2
                 if midpoint < 110:
+                    db.add_car("n", 0)
                     lane_count[0] += 1
                 elif midpoint < 186:
+                    db.add_car("n", 1)
                     lane_count[1] += 1
                 elif midpoint < 265:
+                    db.add_car("n", 2)
                     lane_count[2] += 1
 
             cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
         cv.line(frame, (0, frame_height + COUNT_LINE), (265, frame_height + COUNT_LINE), (0, 0, 255), 2)
         cv.putText(frame, str(lane_count[0]), (44, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
         cv.putText(frame, str(lane_count[1]), (126, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
@@ -86,7 +92,6 @@ def main():
         cv.imshow('Background', avg_frame_res)
         cv.imshow('Threshold', thresh)
         cv.imshow('Video', frame)
-        #cv.imshow('Lanes', canny)
 
         # Press q to exit
         if cv.waitKey(1) & 0xFF == ord('q'):
