@@ -25,6 +25,9 @@ STRUCT_SIZE = (10, 10)
 # Threshold brightness value for blob detection
 THRESHOLD_VALUE = 30
 
+# Path to video for computer vision
+FEED = "feed/feed_west.mp4"
+
 
 def kmcluster(dataset, k):
     """ Find k number of means by analysing clusters in the dataset. """
@@ -59,7 +62,7 @@ def preprocess_frame(frame):
 def main():
     """ Process the traffic feed and update the database. """
     # Set up the video capture
-    cap = cv.VideoCapture("feed/feed_north.mp4")
+    cap = cv.VideoCapture("feed/feed_west.mp4")
     frame_width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
     db = Database()
@@ -110,7 +113,7 @@ def main():
                         lane_diff.append(abs(midpoint - i))
                     lane = min_index(lane_diff)
                     lane_count[lane] += 1
-                    db.add_car("n", lane)
+                    db.add_car(FEED[10], lane)
 
             #cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
@@ -121,6 +124,7 @@ def main():
         if len(midpoints) > MAX_MIDPOINT_SAMPLE:
             for i in midpoint_clusters:
                 cv.line(frame, (int(i),0),(int(i),frame_height),(0, 0, 255), 2)
+
 
         cv.line(frame, (0, frame_height + COUNT_LINE), (265, frame_height + COUNT_LINE), (0, 0, 255), 2)
         cv.putText(frame, str(lane_count[0]), (44, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
