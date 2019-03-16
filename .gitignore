@@ -1,0 +1,6 @@
+.DS_Store
+.idea/
+__pycache__/
+feed/
+serviceAccountCredentials.json
+config.py
