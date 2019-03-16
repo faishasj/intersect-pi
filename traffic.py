@@ -1,49 +1,36 @@
 import cv2 as cv
-from database import Database
-import pandas as pd
-from sklearn.cluster import KMeans
 import numpy as np
-import math
+import pandas as pd
+from database import Database
+from sklearn.cluster import KMeans
 
 # Weight of the input image into the background accumulator frame
 AVG_WEIGHT = 0.01
 
 # Kernel for Gaussian blur
-BLUR_KERNEL = (21, 21)
+BLUR_KERNEL = (5, 5)
 
 # Y value of line at which cars will be counted when crossed
 COUNT_LINE = -75
 
 # Error margin in pixels for cars crossing the COUNT_LINE
-COUNT_ERROR_MARGIN = 3
+COUNT_ERROR_MARGIN = 2
+
+# Number of midpoint samples to take before determining lanes
+MAX_MIDPOINT_SAMPLE = 50
 
 # Size of the structuring element for the kernel
-STRUCT_SIZE = (6, 6)
+STRUCT_SIZE = (10, 10)
 
 # Threshold brightness value for blob detection
 THRESHOLD_VALUE = 30
 
-# Array of the x midpoints of the co-ordinates of cars, for lane recognition
-X_MIDS = []
-
-
-def min_index(list):
-    min_val = list[0]
-    min_i = 0
-    for i in range(1,len(list)):
-        if list[i] < min_val:
-            min_val = list[i]
-            min_i = i
-    return min_i
-
-
-# K_Means Clustering-----------------------------------------------------------
-
 
 def kmcluster(dataset, k):
-    x = pd.DataFrame(np.array(dataset).reshape(len(dataset),1), columns = list("x"))
-    y = pd.DataFrame(np.array([1]*len(dataset)).reshape(len(dataset),1), columns = list("y"))
-    kmeans = KMeans(n_clusters=k).fit(x,y)
+    """ Find k number of means by analysing clusters in the dataset. """
+    x = pd.DataFrame(np.array(dataset).reshape(len(dataset), 1), columns=list("x"))
+    y = pd.DataFrame(np.array([1] * len(dataset)).reshape(len(dataset), 1), columns=list("y"))
+    kmeans = KMeans(n_clusters=k).fit(x, y)
     klist = list(kmeans.cluster_centers_)
     clusters = []
     for i in range(len(klist)):
@@ -51,7 +38,15 @@ def kmcluster(dataset, k):
     return clusters
 
 
-# Video Processing--------------------------------------------------------------
+def min_index(a_list):
+    """ Return the index of the item with lowest value. """
+    min_val = a_list[0]
+    min_i = 0
+    for i in range(1, len(a_list)):
+        if a_list[i] < min_val:
+            min_val = a_list[i]
+            min_i = i
+    return min_i
 
 
 def preprocess_frame(frame):
@@ -62,6 +57,7 @@ def preprocess_frame(frame):
 
 
 def main():
+    """ Process the traffic feed and update the database. """
     # Set up the video capture
     cap = cv.VideoCapture("feed/feed_north.mp4")
     frame_width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
@@ -73,9 +69,8 @@ def main():
     avg_frame = frame.astype("float")
 
     lane_count = [0, 0, 0]
-    lane_density = [0, 0, 0]
-
-    CLUSTERS = []
+    midpoints = []
+    midpoint_clusters = []
 
     while ret:
         # Read in the current frame
@@ -107,37 +102,25 @@ def main():
             (x, y, w, h) = cv.boundingRect(contour)
             if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN and x < frame_width//2:
                 midpoint = x + w / 2
-
-                #if midpoint < 110:
-                #    lane_count[0] += 1
-                #elif midpoint < 186:
-                #    lane_count[1] += 1
-                #elif midpoint < 265:
-                #    lane_count[2] += 1
-
-                #midpoints gathering
-                if len(X_MIDS) < 20:
-                    X_MIDS.append(midpoint)
-                    X_MIDS.append(0)
+                if len(midpoints) < MAX_MIDPOINT_SAMPLE:
+                    midpoints.append(midpoint)
                 else:
                     lane_diff = []
-                    for i in CLUSTERS:
+                    for i in midpoint_clusters:
                         lane_diff.append(abs(midpoint - i))
-                    lane_count[min_index(lane_diff)] += 1
+                    lane = min_index(lane_diff)
+                    lane_count[lane] += 1
+                    db.add_car("n", lane)
 
+            #cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
+        if len(midpoints) == MAX_MIDPOINT_SAMPLE:
+            midpoint_clusters = kmcluster(midpoints, 3)
+            midpoints.append(0)
 
-            cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-        if len(X_MIDS) == 20:
-            CLUSTERS = kmcluster(X_MIDS, 3)
-            X_MIDS.append(0)
-            print("20")
-
-        if len(X_MIDS) > 20:
-            for i in CLUSTERS:
+        if len(midpoints) > MAX_MIDPOINT_SAMPLE:
+            for i in midpoint_clusters:
                 cv.line(frame, (int(i),0),(int(i),frame_height),(0, 0, 255), 2)
-
 
         cv.line(frame, (0, frame_height + COUNT_LINE), (265, frame_height + COUNT_LINE), (0, 0, 255), 2)
         cv.putText(frame, str(lane_count[0]), (44, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
