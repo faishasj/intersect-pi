@@ -4,7 +4,7 @@ import cv2 as cv
 AVG_WEIGHT = 0.01
 
 # Kernel for Gaussian blur
-BLUR_KERNEL = (9, 9)
+BLUR_KERNEL = (21, 21)
 
 # Y value of line at which cars will be counted when crossed
 COUNT_LINE = -75
