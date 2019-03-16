@@ -22,9 +22,19 @@ STRUCT_SIZE = (6, 6)
 # Threshold brightness value for blob detection
 THRESHOLD_VALUE = 30
 
+# Array of the x midpoints of the co-ordinates of cars, for lane recognition
 X_MIDS = []
-WIDTHS = []
-AVG_W = 0
+
+
+def min_index(list):
+    min_val = list[0]
+    min_i = 0
+    for i in range(1,len(list)):
+        if list[i] < min_val:
+            min_val = list[i]
+            min_i = i
+    return min_i
+
 
 # K_Means Clustering-----------------------------------------------------------
 
@@ -95,30 +105,35 @@ def main():
             (x, y, w, h) = cv.boundingRect(contour)
             if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN and x < frame_width//2:
                 midpoint = x + w / 2
-                if midpoint < 110:
-                    lane_count[0] += 1
-                elif midpoint < 186:
-                    lane_count[1] += 1
-                elif midpoint < 265:
-                    lane_count[2] += 1
+
+                #if midpoint < 110:
+                #    lane_count[0] += 1
+                #elif midpoint < 186:
+                #    lane_count[1] += 1
+                #elif midpoint < 265:
+                #    lane_count[2] += 1
 
                 #midpoints gathering
                 if len(X_MIDS) < 20:
                     X_MIDS.append(midpoint)
-                    WIDTHS.append(w)
                     X_MIDS.append(0)
+                else:
+                    lane_diff = []
+                    for i in CLUSTERS:
+                        lane_diff.append(abs(midpoint - i))
+                    lane_count[min_index(lane_diff)] += 1
+
+
 
             cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
         if len(X_MIDS) == 20:
-            AVG_W = sum(WIDTHS)/len(WIDTHS)
             CLUSTERS = kmcluster(X_MIDS, 3)
             X_MIDS.append(0)
+            print("20")
 
         if len(X_MIDS) > 20:
             for i in CLUSTERS:
-    #            cv.line(frame, (int(i+AVG_W/2),0),(int(i + AVG_W/2),frame_height),(0, 0, 255), 2)
-    #            cv.line(frame, (int(i-AVG_W/2),0),(int(i - AVG_W/2),frame_height),(0, 0, 255), 2)
                 cv.line(frame, (int(i),0),(int(i),frame_height),(0, 0, 255), 2)
 
 
