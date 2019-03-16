@@ -1,9 +1,12 @@
 import cv2 as cv
+<<<<<<< HEAD
 from database import Database
+=======
 import pandas as pd
 from sklearn.cluster import KMeans
 import numpy as np
 import math
+>>>>>>> f79b70586ec1b891c8b9f0f902c58638d5aa5a5b
 
 # Weight of the input image into the background accumulator frame
 AVG_WEIGHT = 0.01
@@ -107,6 +110,20 @@ def main():
             (x, y, w, h) = cv.boundingRect(contour)
             if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN and x < frame_width//2:
                 midpoint = x + w / 2
+<<<<<<< HEAD
+                if midpoint < 110:
+                    db.add_car("n", 0)
+                    lane_count[0] += 1
+                elif midpoint < 186:
+                    db.add_car("n", 1)
+                    lane_count[1] += 1
+                elif midpoint < 265:
+                    db.add_car("n", 2)
+                    lane_count[2] += 1
+
+            cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+=======
 
                 #if midpoint < 110:
                 #    lane_count[0] += 1
@@ -139,12 +156,13 @@ def main():
                 cv.line(frame, (int(i),0),(int(i),frame_height),(0, 0, 255), 2)
 
 
+>>>>>>> f79b70586ec1b891c8b9f0f902c58638d5aa5a5b
         cv.line(frame, (0, frame_height + COUNT_LINE), (265, frame_height + COUNT_LINE), (0, 0, 255), 2)
         cv.putText(frame, str(lane_count[0]), (44, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
         cv.putText(frame, str(lane_count[1]), (126, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
         cv.putText(frame, str(lane_count[2]), (205, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
 
-        # Display the processed frames
+        # Display the processed framess
         cv.imshow('Background', avg_frame_res)
         cv.imshow('Threshold', thresh)
         cv.imshow('Video', frame)
