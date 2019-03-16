@@ -1,4 +1,8 @@
 import cv2 as cv
+import pandas as pd
+from sklearn.cluster import KMeans
+import numpy as np
+import math
 
 # Weight of the input image into the background accumulator frame
 AVG_WEIGHT = 0.01
@@ -17,6 +21,26 @@ STRUCT_SIZE = (6, 6)
 
 # Threshold brightness value for blob detection
 THRESHOLD_VALUE = 30
+
+X_MIDS = []
+WIDTHS = []
+AVG_W = 0
+
+# K_Means Clustering-----------------------------------------------------------
+
+
+def kmcluster(dataset, k):
+    x = pd.DataFrame(np.array(dataset).reshape(len(dataset),1), columns = list("x"))
+    y = pd.DataFrame(np.array([1]*len(dataset)).reshape(len(dataset),1), columns = list("y"))
+    kmeans = KMeans(n_clusters=k).fit(x,y)
+    klist = list(kmeans.cluster_centers_)
+    clusters = []
+    for i in range(len(klist)):
+        clusters.append(int(klist[i][0]))
+    return clusters
+
+
+# Video Processing--------------------------------------------------------------
 
 
 def preprocess_frame(frame):
@@ -38,6 +62,8 @@ def main():
 
     lane_count = [0, 0, 0]
     lane_density = [0, 0, 0]
+
+    CLUSTERS = []
 
     while ret:
         # Read in the current frame
@@ -67,7 +93,7 @@ def main():
         # Count the cars in each lane
         for contour in contours:
             (x, y, w, h) = cv.boundingRect(contour)
-            if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN:
+            if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN and x < frame_width//2:
                 midpoint = x + w / 2
                 if midpoint < 110:
                     lane_count[0] += 1
@@ -76,13 +102,32 @@ def main():
                 elif midpoint < 265:
                     lane_count[2] += 1
 
+                #midpoints gathering
+                if len(X_MIDS) < 20:
+                    X_MIDS.append(midpoint)
+                    WIDTHS.append(w)
+                    X_MIDS.append(0)
+
             cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        if len(X_MIDS) == 20:
+            AVG_W = sum(WIDTHS)/len(WIDTHS)
+            CLUSTERS = kmcluster(X_MIDS, 3)
+            X_MIDS.append(0)
+
+        if len(X_MIDS) > 20:
+            for i in CLUSTERS:
+    #            cv.line(frame, (int(i+AVG_W/2),0),(int(i + AVG_W/2),frame_height),(0, 0, 255), 2)
+    #            cv.line(frame, (int(i-AVG_W/2),0),(int(i - AVG_W/2),frame_height),(0, 0, 255), 2)
+                cv.line(frame, (int(i),0),(int(i),frame_height),(0, 0, 255), 2)
+
+
         cv.line(frame, (0, frame_height + COUNT_LINE), (265, frame_height + COUNT_LINE), (0, 0, 255), 2)
         cv.putText(frame, str(lane_count[0]), (44, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
         cv.putText(frame, str(lane_count[1]), (126, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
         cv.putText(frame, str(lane_count[2]), (205, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
 
-        # Display the processed frames
+        # Display the processed framess
         cv.imshow('Background', avg_frame_res)
         cv.imshow('Threshold', thresh)
         cv.imshow('Video', frame)
