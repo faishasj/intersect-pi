@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 import pandas as pd
 import sys
+import time
 from database import Database
 from sklearn.cluster import KMeans
 
@@ -18,7 +19,7 @@ COUNT_LINE = -75
 COUNT_ERROR_MARGIN = 2
 
 # Number of midpoint samples to take before determining lanes
-MAX_MIDPOINT_SAMPLE = 50
+MAX_MIDPOINT_SAMPLE = 20
 
 # Size of the structuring element for the kernel
 STRUCT_SIZE = (10, 10)
@@ -36,6 +37,7 @@ def kmcluster(dataset, k):
     clusters = []
     for i in range(len(klist)):
         clusters.append(int(klist[i][0]))
+    clusters.sort()
     return clusters
 
 
@@ -101,19 +103,23 @@ def main(file, road):
         # Count the cars in each lane
         for contour in contours:
             (x, y, w, h) = cv.boundingRect(contour)
-            if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN and x < frame_width//2:
-                midpoint = x + w / 2
-                if len(midpoints) < MAX_MIDPOINT_SAMPLE:
-                    midpoints.append(midpoint)
-                else:
-                    lane_diff = []
-                    for i in midpoint_clusters:
-                        lane_diff.append(abs(midpoint - i))
-                    lane = min_index(lane_diff)
-                    lane_count[lane] += 1
-                    db.add_car(road, lane)
+            if x < frame_width // 2:
+                # Just to show nearby blobs
+                if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN * 4:
+                    cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    # Actual error margin for counting cars
+                    if abs(y - (frame_height + COUNT_LINE)) < COUNT_ERROR_MARGIN:
+                        midpoint = x + w / 2
+                        if len(midpoints) < MAX_MIDPOINT_SAMPLE:
+                            midpoints.append(midpoint)
+                        else:
+                            lane_diff = []
+                            for i in midpoint_clusters:
+                                lane_diff.append(abs(midpoint - i))
+                            lane = min_index(lane_diff)
+                            lane_count[lane] += 1
+                            db.add_car(road, lane)
 
-            #cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
         if len(midpoints) == MAX_MIDPOINT_SAMPLE:
             midpoint_clusters = kmcluster(midpoints, 3)
@@ -124,9 +130,6 @@ def main(file, road):
                 cv.line(frame, (int(i),0),(int(i),frame_height),(0, 0, 255), 2)
 
         cv.line(frame, (0, frame_height + COUNT_LINE), (265, frame_height + COUNT_LINE), (0, 0, 255), 2)
-        cv.putText(frame, str(lane_count[0]), (44, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
-        cv.putText(frame, str(lane_count[1]), (126, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
-        cv.putText(frame, str(lane_count[2]), (205, frame_height - 80), cv.FONT_HERSHEY_PLAIN, 1, (0, 0, 255))
 
         # Display the processed frames
         cv.imshow('Background', avg_frame_res)
@@ -136,6 +139,8 @@ def main(file, road):
         # Press q to exit
         if cv.waitKey(1) & 0xFF == ord('q'):
             break
+
+        time.sleep(0.1)
 
     cv.destroyAllWindows()
 
